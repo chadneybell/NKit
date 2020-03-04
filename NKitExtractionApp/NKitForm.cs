@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -21,8 +18,8 @@ namespace Nanook.NKit
         private ListViewItem _processingItem;
         private int _processFilesCount;
         private int _processFileIndex;
-        private ListViewItem _dragDropItem;
-        public bool HasDragDropItem { get { return (lvw.Items.Count == 1 && lvw.Items[0] == _dragDropItem); } }
+        private readonly ListViewItem _dragDropItem;
+        public bool HasDragDropItem => (lvw.Items.Count == 1 && lvw.Items[0] == _dragDropItem);
 
         public NKitForm()
         {
@@ -55,7 +52,9 @@ namespace Nanook.NKit
         private void lvw_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
                 e.Effect = DragDropEffects.Copy;
+            }
         }
 
         private void lvw_DragDrop(object sender, DragEventArgs e)
@@ -63,14 +62,19 @@ namespace Nanook.NKit
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
 
             foreach (SourceFile sf in SourceFiles.Scan(files, false))
+            {
                 addItem(sf);
+            }
+
             setScreenState();
         }
         private void txt_DragEnter(object sender, DragEventArgs e)
         {
             TextBox t = (TextBox)sender;
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
                 e.Effect = DragDropEffects.Copy;
+            }
         }
 
         private void txt_DragDrop(object sender, DragEventArgs e)
@@ -138,12 +142,16 @@ namespace Nanook.NKit
                     try
                     {
                         if (!string.IsNullOrEmpty(t.Text) && Directory.Exists(t.Text))
+                        {
                             dlgFolder.InitialDirectory = t.Text;
+                        }
                     }
                     catch { }
                     dlgFolder.FileName = "anything";
                     if (dlgFolder.ShowDialog() == DialogResult.OK)
+                    {
                         t.Text = Path.GetDirectoryName(dlgFolder.FileName);
+                    }
                 }
                 else
                 {
@@ -191,10 +199,13 @@ namespace Nanook.NKit
             process(cboSettingsMode.SelectedIndex, txtSettingsRegex.Text, txtSettingsPath.Text, items,
                 item => //started item
                 {
-                    this.Invoke((MethodInvoker)delegate
+                    Invoke((MethodInvoker)delegate
                     {
                         if (lvw.SelectedItems.Count == 0 || lvw.SelectedItems[0] == _processingItem)
+                        {
                             item.Selected = true; //move the logging on
+                        }
+
                         _processingItem = item;
                         prgProgressFiles.CustomText = ((ProcessFile)item.Tag).SourceFile.Name;
                         prgProgressFiles.Refresh();
@@ -202,7 +213,7 @@ namespace Nanook.NKit
                 },
                 item => //completed item
                 {
-                    this.Invoke((MethodInvoker)delegate
+                    Invoke((MethodInvoker)delegate
                     {
                         _processFileIndex++;
                         prgProgressFiles.Value = _processFileIndex;
@@ -215,7 +226,9 @@ namespace Nanook.NKit
                             item.SubItems[4].Text = results.Region.ToString() ?? "";
                         }
                         else
+                        {
                             item.SubItems[1].Text = "Error";
+                        }
                     });
                     return _state != State.Stopping; //stop
                 }).ContinueWith(
@@ -228,16 +241,23 @@ namespace Nanook.NKit
         private void btnProgressResume_Click(object sender, EventArgs e)
         {
             if (_state == State.Stopping)
+            {
                 _state = State.Processing;
+            }
             else if (_state == State.Stopped)
+            {
                 btnSettingsProcess_Click(this, new EventArgs());
+            }
+
             setScreenState();
         }
 
         private void btnProgressStop_Click(object sender, EventArgs e)
         {
             if (_state == State.Processing)
+            {
                 _state = State.Stopping;
+            }
             else
             {
                 _state = State.New;
@@ -251,7 +271,9 @@ namespace Nanook.NKit
         private void lvw_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (lvw.SelectedItems.Count != 0)
+            {
                 txtLog.Text = ((ProcessFile)lvw.SelectedItems[0].Tag).Log;
+            }
         }
 
         private ProcessFile addItem(SourceFile sourceFile)
@@ -259,10 +281,14 @@ namespace Nanook.NKit
             ProcessFile pf = new ProcessFile() { SourceFile = sourceFile };
             ListViewItem li = new ListViewItem(pf.SourceFile.Name) { Tag = pf };
             for (int i = 0; i < lvw.Columns.Count - 1; i++)
+            {
                 li.SubItems.Add("");
+            }
 
-            if (this.HasDragDropItem)
+            if (HasDragDropItem)
+            {
                 lvw.Items.Clear();
+            }
 
             lvw.Items.Add(li);
             return pf;
@@ -275,14 +301,16 @@ namespace Nanook.NKit
                 foreach (ListViewItem li in lvw.Items)
                 {
                     if (((ProcessFile)li.Tag).Results == null)
+                    {
                         yield return li;
+                    }
                 }
             }
         }
 
         private void setScreenState()
         {
-            this.Invoke((MethodInvoker)delegate
+            Invoke((MethodInvoker)delegate
             {
                 lvw.AllowDrop = _state == State.New;
                 grpSettings.Visible = _state == State.New;
@@ -295,11 +323,13 @@ namespace Nanook.NKit
                 txtSettingsRegex.Enabled = txtSettingsPath.Enabled && !chkSettingsSystemFiles.Checked;
                 btnSettingsRegex.Enabled = txtSettingsRegex.Enabled;
                 chkSettingsSystemFiles.Enabled = txtSettingsPath.Enabled;
-                btnProgressCopy.Enabled = !this.HasDragDropItem;
+                btnProgressCopy.Enabled = !HasDragDropItem;
                 string[] bn = ((string)btnProgressStop.Tag).Split('|');
                 btnProgressStop.Text = bn[_state == State.Stopping ? 1 : (_state == State.Complete || _state == State.Stopped ? 2 : 0)];
                 if (_state == State.New)
+                {
                     prgProgressFiles.CustomText = "";
+                }
             });
         }
 
@@ -350,7 +380,7 @@ namespace Nanook.NKit
                                 }
                                 catch (Exception ex)
                                 {
-                                    this.Invoke((MethodInvoker)delegate { addToLog(ex.Message); });
+                                    Invoke((MethodInvoker)delegate { addToLog(ex.Message); });
                                 }
                                 finally
                                 {
@@ -363,7 +393,9 @@ namespace Nanook.NKit
                         nkitConvert.LogMessage -= NkitConvert_LogMessage;
                     }
                     if (!completedItem(item))
+                    {
                         break;
+                    }
                 }
             });
         }
@@ -373,12 +405,17 @@ namespace Nanook.NKit
 
             path = Path.Combine(path, f.DiscType.ToString(), imageName + "_" + f.DiscId8);
             if (f.PartitionId != null)
+            {
                 path = Path.Combine(path, f.PartitionId);
+            }
+
             path = Path.Combine(path, SourceFiles.PathFix(f.Path.TrimStart('/')));
             Directory.CreateDirectory(path);
 
             using (Stream b = File.OpenWrite(Path.Combine(path, f.Name)))
+            {
                 s.Copy(b, f.Length);
+            }
         }
 
         private void addToLog(string msg)
@@ -397,16 +434,22 @@ namespace Nanook.NKit
         private void NkitConvert_LogMessage(object sender, MessageEventArgs e)
         {
             if (_processingItem != null)
-                this.Invoke((MethodInvoker)delegate { addToLog(e.Message); });
+            {
+                Invoke((MethodInvoker)delegate { addToLog(e.Message); });
+            }
         }
 
         private void btnSettingsRegex_Click(object sender, EventArgs e)
         {
             Point screenPoint = btnSettingsRegex.PointToScreen(new Point(btnSettingsRegex.Left, btnSettingsRegex.Bottom));
             if (screenPoint.Y + mnuSettingsRegex.Size.Height > Screen.PrimaryScreen.WorkingArea.Height)
+            {
                 mnuSettingsRegex.Show(btnSettingsRegex, new Point(0, -mnuSettingsRegex.Size.Height));
+            }
             else
+            {
                 mnuSettingsRegex.Show(btnSettingsRegex, new Point(0, btnSettingsRegex.Height));
+            }
         }
 
         private void btnProgressCopy_Click(object sender, EventArgs e)
@@ -414,15 +457,21 @@ namespace Nanook.NKit
             try
             {
                 StringBuilder sb = new StringBuilder();
-                if (!this.HasDragDropItem)
+                if (!HasDragDropItem)
                 {
                     for (int i = 0; i < lvw.Columns.Count; i++)
+                    {
                         sb.Append((i == 0 ? "" : "\t") + lvw.Columns[i].Text);
+                    }
+
                     sb.AppendLine();
                     foreach (ListViewItem li in lvw.Items)
                     {
                         for (int i = 0; i < li.SubItems.Count; i++)
+                        {
                             sb.Append((i == 0 ? "" : "\t") + li.SubItems[i].Text);
+                        }
+
                         sb.AppendLine();
                     }
                     Clipboard.SetText(sb.ToString());

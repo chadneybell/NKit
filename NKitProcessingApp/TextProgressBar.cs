@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Nanook.NKit
@@ -14,13 +10,13 @@ namespace Nanook.NKit
         CustomText
     }
 
-    class TextProgressBar : ProgressBar
+    internal class TextProgressBar : ProgressBar
     {
         //Property to set to decide whether to print a % or Text
         public ProgressBarDisplayText DisplayStyle { get; set; }
 
         //Property to hold the custom text
-        public String CustomText { get; set; }
+        public string CustomText { get; set; }
 
         public TextProgressBar()
         {
@@ -50,11 +46,11 @@ namespace Nanook.NKit
             // Set the Display text (Either a % amount or our custom text
             string text = DisplayStyle == ProgressBarDisplayText.Percentage ? Value.ToString() + '%' : CustomText;
 
-            Font f = this.Parent.Font;
+            Font f = Parent.Font;
             //using (Font f = new Font(this.Parent.Font, FontStyle.Bold))
             //{
 
-            SizeF len = g.MeasureString(text, this.Parent.Font);
+            SizeF len = g.MeasureString(text, Parent.Font);
             // Calculate the location of the text (the middle of progress bar)
             // Point location = new Point(Convert.ToInt32((rect.Width / 2) - (len.Width / 2)), Convert.ToInt32((rect.Height / 2) - (len.Height / 2)));
             Point location = new Point(Convert.ToInt32((Width / 2) - len.Width / 2), Convert.ToInt32((Height / 2) - len.Height / 2));

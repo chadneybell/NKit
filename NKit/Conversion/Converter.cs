@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Nanook.NKit
 {
@@ -14,21 +13,21 @@ namespace Nanook.NKit
         public event EventHandler<ProgressEventArgs> LogProgress;
 
         private List<Tuple<string, LogMessageType>> _logCache; //cache messages if progress is being printed
-        private object _logCacheLock;
+        private readonly object _logCacheLock;
         private bool _inProgress;
         private int _completedPasses;
         private int _totalPasses;
         private bool _forcedWiiFullNkitRebuild; //only true when converting to nkit and reencode is false, remove update partition is true but the source image is missing it.
 
         private Context _context;
-        private SourceFile _sourceFile;
-        private bool _cacheLogsWhileProcessing; //so if console is outputting progress it is saved until complete
-        private Settings _settings;
-        private NStream _nstream;
+        private readonly SourceFile _sourceFile;
+        private readonly bool _cacheLogsWhileProcessing; //so if console is outputting progress it is saved until complete
+        private readonly Settings _settings;
+        private readonly NStream _nstream;
         private int _detailLinesOutput;
 
-        internal NStream NStream { get { return _nstream; } }
-        public Settings Settings { get { return _settings; } }
+        internal NStream NStream => _nstream;
+        public Settings Settings => _settings;
 
         public string ConvertionName { get; private set; }
 
@@ -37,7 +36,7 @@ namespace Nanook.NKit
             _inProgress = false;
             _cacheLogsWhileProcessing = cacheLogsWhileProcessing;
             _logCache = null;
-            _logCacheLock = new Object();
+            _logCacheLock = new object();
             _sourceFile = sourceFile;
             _nstream = sourceFile.OpenNStream();
             _detailLinesOutput = 0;
@@ -252,7 +251,7 @@ namespace Nanook.NKit
             string lastTmp = null;
             string tmp = null;
 
-            this.ConvertionName = conversion;
+            ConvertionName = conversion;
 
             try
             {
@@ -261,30 +260,43 @@ namespace Nanook.NKit
                 long sourceSize = nstream.SourceSize;
 
                 _context = new Context();
-                _context.Initialise(this.ConvertionName, sourceFile, _settings, true, isRecovery, nstream.IsGameCube, nstream.Id8, this);
+                _context.Initialise(ConvertionName, sourceFile, _settings, true, isRecovery, nstream.IsGameCube, nstream.Id8, this);
 
                 List<Processor> processors = passes(nstream).Where(a => a != null).ToList();
                 if (nkitFormat == NkitFormatType.Gcz)
+                {
                     processors.Add(new Processor(new IsoReader(), new GczWriter(), "To GCZ", this, false, true, ProcessorSizeMode.Stream));
+                }
+
                 if (calcHashes)
+                {
                     processors.Add(new Processor(new IsoReader(), new HashWriter(), "Calc Hashes", this, false, true, ProcessorSizeMode.Stream));
+                }
+
                 if (fullVerify)
                 {
                     if (!toNkit)
+                    {
                         processors.Add(new Processor(new IsoReader(), new VerifyWriter(), "Full Verify", this, false, true, ProcessorSizeMode.Stream));
+                    }
                     else
+                    {
                         processors.Add(new Processor(nstream.IsGameCube ? new NkitReaderGc() : (IReader)new NkitReaderWii(), new VerifyWriter(), "NKit Verify", this, true, true, ProcessorSizeMode.Image));
+                    }
+
                     processors.Last().Writer.RequireVerifyCrc = true;
                     processors.Last().Writer.VerifyIsWrite = true; //read verify
                 }
                 _totalPasses = processors.Count();
 
                 if (processors.Count == 0)
+                {
                     return null;
+                }
 
                 DateTime dt = DateTime.Now;
                 _completedPasses = 0;
-                
+
                 Log("PROCESSING" + (testMode ? " [TEST MODE]" : ((_context.Settings.DeleteSource ? " [DELETE SOURCE]" : ""))));
                 Log("-------------------------------------------------------------------------------");
                 if (_forcedWiiFullNkitRebuild)
@@ -300,7 +312,10 @@ namespace Nanook.NKit
 
                 int i = 1;
                 foreach (Processor pro in processors.Where(pro => pro != null))
+                {
                     LogDebug(string.Format("Pass {0}: {1}", (i++).ToString(), pro.ToString()));
+                }
+
                 LogBlank();
 
                 foreach (Processor pro in processors)
@@ -324,7 +339,10 @@ namespace Nanook.NKit
                         {
                             tmp = Path.Combine(_context.Settings.TempPath, Path.GetFileName(Path.GetTempFileName()));
                             if (!Directory.Exists(_context.Settings.TempPath))
+                            {
                                 Directory.CreateDirectory(_context.Settings.TempPath);
+                            }
+
                             tmpFs = File.Create(tmp, 0x400 * 0x400 * 4, FileOptions.SequentialScan);
                         }
 
@@ -345,7 +363,9 @@ namespace Nanook.NKit
                             results.FullSize = nstream.ImageSize;
                             results.Passes = passesText;
                             if (pro.IsVerify)
+                            {
                                 results.OutputSize = results.InputSize;
+                            }
                         }
                         else if (pro.Writer is HashWriter) //hash writer gives no meaningful info back other than md5 and sha1 (the crc is forced when nkit, so ignore)
                         {
@@ -355,7 +375,10 @@ namespace Nanook.NKit
                         else
                         {
                             if (nr.AliasJunkId != null)
+                            {
                                 results.AliasJunkId = nr.AliasJunkId;
+                            }
+
                             if (nr.OutputTitle != null)
                             {
                                 results.OutputDiscNo = nr.OutputDiscNo;
@@ -367,37 +390,59 @@ namespace Nanook.NKit
                             results.OutputPrePatchCrc = nr.OutputPrePatchCrc;
                             results.FullSize = nstream.ImageSize;
                             if (tmp != null)
+                            {
                                 results.OutputSize = nr.OutputSize;
+                            }
 
                             if (nr.ValidationCrc != 0 && results.VerifyCrc != 0)
+                            {
                                 results.VerifyCrc = 0; //blank verify if a new ValidationCrc is set - verification happened when both != 0
+                            }
 
                             if (nr.VerifyCrc != 0)
+                            {
                                 results.VerifyCrc = nr.VerifyCrc;
+                            }
+
                             if (nr.ValidationCrc != 0)
+                            {
                                 results.ValidationCrc = nr.ValidationCrc;
+                            }
+
                             if (nr.ValidateReadResult != VerifyResult.Unverified)
+                            {
                                 results.ValidateReadResult = nr.ValidateReadResult;
+                            }
+
                             if (nr.VerifyOutputResult != VerifyResult.Unverified)
                             {
                                 if (results.ValidateReadResult == VerifyResult.Unverified && nstream.IsNkit)
+                                {
                                     results.ValidateReadResult = nr.VerifyOutputResult;
+                                }
+
                                 results.VerifyOutputResult = nr.VerifyOutputResult;
                             }
                             if (nr.IsRecoverable)
+                            {
                                 results.IsRecoverable = nr.IsRecoverable;
+                            }
                         }
                     }
                     finally
                     {
                         if (tmpFs != null)
+                        {
                             tmpFs.Dispose();
+                        }
 
                         nstream.Close();
                     }
 
                     if (lastTmp != null && tmp != null)
+                    {
                         File.Delete(lastTmp);
+                    }
 
                     //handle failures well
                     if (results.ValidateReadResult == VerifyResult.VerifyFailed || results.VerifyOutputResult == VerifyResult.VerifyFailed)
@@ -407,10 +452,14 @@ namespace Nanook.NKit
                     }
 
                     if (_completedPasses != _totalPasses) //last item
+                    {
                         sf = SourceFiles.OpenFile(tmp ?? lastTmp);
+                    }
 
                     if (tmp != null)
+                    {
                         lastTmp = tmp;
+                    }
                 }
 
                 TimeSpan ts = DateTime.Now - dt;
@@ -427,7 +476,9 @@ namespace Nanook.NKit
                         Log("Deleting Output" + (Settings.OutputLevel != 3 ? "" : " (Skipped as OutputLevel is 3:Debug)"));
                         results.OutputFileName = null;
                         if (Settings.OutputLevel != 3)
+                        {
                             File.Delete(lastTmp);
+                        }
 
                         LogBlank();
                     }
@@ -449,11 +500,17 @@ namespace Nanook.NKit
                     {
                         Log(string.Format("{0} [{1} Name]", results.RedumpInfo.MatchName, results.RedumpInfo.MatchType.ToString()));
                         if (results.IsRecoverable)
+                        {
                             Log(string.Format("Missing Recovery data is required to correctly restore this image!", results.RedumpInfo.MatchName, results.RedumpInfo.MatchType.ToString()));
+                        }
+
                         mask = results.RedumpInfo.MatchType == MatchType.Custom ? _context.Settings.CustomMatchRenameToMask : _context.Settings.RedumpMatchRenameToMask;
                     }
                     else
+                    {
                         Log(string.Format("CRC {0} not in Redump or Custom Dat", finalCrc.ToString("X8")));
+                    }
+
                     LogBlank();
 
 
@@ -467,7 +524,9 @@ namespace Nanook.NKit
                             Log("TestMode: Deleting Output");
                             results.OutputFileName = null;
                             if (File.Exists(lastTmp))
+                            {
                                 File.Delete(lastTmp);
+                            }
                         }
                         else if (isRecovery && _context.Settings.RecoveryMatchFailDelete && results.RedumpInfo.MatchType == MatchType.MatchFail)
                         {
@@ -491,7 +550,9 @@ namespace Nanook.NKit
 
                             string path = Path.GetDirectoryName(results.OutputFileName);
                             if (!Directory.Exists(path))
+                            {
                                 Directory.CreateDirectory(path);
+                            }
 
                             File.Move(lastTmp, results.OutputFileName);
 
@@ -520,15 +581,23 @@ namespace Nanook.NKit
                 try
                 {
                     if (lastTmp == null)
+                    {
                         lastTmp = tmp;
+                    }
+
                     if (lastTmp != null)
                     {
                         LogBlank();
                         Log("Deleting Output" + (Settings.OutputLevel != 3 ? "" : " (Skipped as OutputLevel is 3:Debug)"));
                         if (results != null)
+                        {
                             results.OutputFileName = null;
+                        }
+
                         if (Settings.OutputLevel != 3)
+                        {
                             File.Delete(lastTmp);
+                        }
                     }
                 }
                 catch { }
@@ -537,20 +606,25 @@ namespace Nanook.NKit
                 {
                     if (results == null)
                     {
-                        results = new OutputResults();
-                        results.Conversion = this.ConvertionName;
-                        results.DiscType = (nstream?.IsGameCube ?? true) ? DiscType.GameCube : DiscType.Wii;
-                        results.InputFileName = (sourceFile?.AllFiles?.Length ?? 0) == 0 ? (sourceFile?.FilePath ?? "") : (sourceFile?.AllFiles.FirstOrDefault() ?? "");
-                        results.InputDiscNo = nstream?.DiscNo ?? 0;
-                        results.InputDiscVersion = nstream?.Version ?? 0;
-                        results.InputTitle = nstream?.Title ?? "";
-                        results.InputId8 = nstream?.Id8 ?? "";
-                        results.InputSize = sourceFile?.Length ?? 0;
+                        results = new OutputResults
+                        {
+                            Conversion = ConvertionName,
+                            DiscType = (nstream?.IsGameCube ?? true) ? DiscType.GameCube : DiscType.Wii,
+                            InputFileName = (sourceFile?.AllFiles?.Length ?? 0) == 0 ? (sourceFile?.FilePath ?? "") : (sourceFile?.AllFiles.FirstOrDefault() ?? ""),
+                            InputDiscNo = nstream?.DiscNo ?? 0,
+                            InputDiscVersion = nstream?.Version ?? 0,
+                            InputTitle = nstream?.Title ?? "",
+                            InputId8 = nstream?.Id8 ?? "",
+                            InputSize = sourceFile?.Length ?? 0
+                        };
                     }
                     results.VerifyOutputResult = VerifyResult.Error;
                     HandledException hex = ex as HandledException;
                     if (hex == null)
+                    {
                         hex = new HandledException(ex, "Unhandled Exception");
+                    }
+
                     results.ErrorMessage = hex.FriendlyErrorMessage;
                 }
                 throw;
@@ -577,9 +651,12 @@ namespace Nanook.NKit
             try
             {
                 if (!File.Exists(settings.SummaryLog))
+                {
                     System.IO.File.AppendAllText(settings.SummaryLog, string.Join("\t", "TimeStamp", "Conversion", "System", "ReadResult", "OutputResult", "OutputCrc", "OutputID4", "RedumpMatch", "RedumpName", "InputSize", "OutputSize", "FullSize", "InputFilename", "OutputFilename", "MD5", "SHA1", "Passes", "SecondsElapsed", "ErrorMessage") + Environment.NewLine);
+                }
 
                 if (settings.EnableSummaryLog)
+                {
                     System.IO.File.AppendAllText(settings.SummaryLog, string.Join("\t",
                         DateTime.Now.ToString(),
                         results.Conversion,
@@ -601,6 +678,7 @@ namespace Nanook.NKit
                         ((int)results.ProcessingTime.TotalSeconds).ToString(),
                         (results.ErrorMessage ?? "").Replace("\r", "").Replace('\t', ' ').Trim('\n', ' ').Replace("\n", " : ")
                         ) + Environment.NewLine);
+                }
             }
             catch { }
         }
@@ -631,7 +709,9 @@ namespace Nanook.NKit
                 output = true;
             }
             if (output)
+            {
                 LogBlank();
+            }
         }
 
         private string friendly(string text)
@@ -653,7 +733,10 @@ namespace Nanook.NKit
             {
                 sb.Append(" >> [");
                 if (passes.Count > 1)
+                {
                     sb.AppendFormat("{0}:", (i + 1).ToString());
+                }
+
                 sb.Append(passes[i].Title);
                 sb.Append("]");
             }
@@ -669,7 +752,10 @@ namespace Nanook.NKit
         public void ProcessingStart(long inputSize, string message)
         {
             if (LogProgress != null)
+            {
                 LogProgress(this, new ProgressEventArgs() { IsStart = true, Progress = 0, TotalProgress = 0, StartMessage = message, Size = inputSize });
+            }
+
             _detailLinesOutput = 0;
             _inProgress = true;
         }
@@ -681,9 +767,13 @@ namespace Nanook.NKit
             if (LogProgress != null)
             {
                 if (success)
+                {
                     LogProgress(this, new ProgressEventArgs() { IsComplete = true, Progress = 1, TotalProgress = (_completedPasses / _totalPasses), CompleteMessage = message, Size = outputSize });
+                }
                 else
+                {
                     LogBlank();
+                }
             }
 
             _inProgress = false;
@@ -696,15 +786,22 @@ namespace Nanook.NKit
                     {
                         outputDetailHF(true);
                         foreach (Tuple<string, LogMessageType> m in _logCache)
+                        {
                             msg(m.Item1, m.Item2, true);
+                        }
+
                         outputDetailHF(false);
                         if (_logCache != null)
+                        {
                             _logCache.Clear();
+                        }
                     }
                 }
             }
             else if (_detailLinesOutput != 0)
+            {
                 outputDetailHF(false);
+            }
         }
 
         public void ProcessingProgress(float value)
@@ -712,10 +809,14 @@ namespace Nanook.NKit
             float total = 0;
 
             if (value != 0)
-                total = (float)((double)(_completedPasses + value) / (double)_totalPasses);
+            {
+                total = (float)((_completedPasses + value) / (double)_totalPasses);
+            }
 
             if (LogProgress != null)
+            {
                 LogProgress(this, new ProgressEventArgs() { Progress = value, TotalProgress = total });
+            }
         }
 
         public void Log(string message)
@@ -730,7 +831,9 @@ namespace Nanook.NKit
         public void LogDebug(string message)
         {
             if (Settings.OutputLevel == 3)
+            {
                 msg("    >" + message, LogMessageType.Debug, false);
+            }
         }
         public void LogBlank()
         {
@@ -748,11 +851,16 @@ namespace Nanook.NKit
                     {
                         Debug.WriteLine(message);
                         lock (_logCacheLock)
+                        {
                             _logCache.Add(new Tuple<string, LogMessageType>(message, type));
+                        }
+
                         return;
                     }
                     else
+                    {
                         detail = true;
+                    }
                 }
             }
 

@@ -1,13 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Nanook.NKit
 {
@@ -15,7 +11,7 @@ namespace Nanook.NKit
 
     public class Settings
     {
-        private static string _exePath;
+        private static readonly string _exePath;
 
         public static string ExeName { get; private set; }
 
@@ -75,21 +71,29 @@ namespace Nanook.NKit
         private void createPaths(params string[] paths)
         {
             foreach (string p in paths)
+            {
                 createPath(p, true);
-            createPath(this.TempPath, false);
-            createPath(this.RecoveryFilesPath, false);
-            createPath(this.OtherRecoveryFilesPath, false);
+            }
+
+            createPath(TempPath, false);
+            createPath(RecoveryFilesPath, false);
+            createPath(OtherRecoveryFilesPath, false);
         }
 
         private void createPath(string path, bool removeName)
         {
             if (path == null)
+            {
                 return;
+            }
+
             try
             {
                 path = removeName ? System.IO.Path.GetDirectoryName(path) : path;
                 if (!string.IsNullOrEmpty(path) && !File.Exists(path))
+                {
                     Directory.CreateDirectory(path);
+                }
             }
             catch { }
         }
@@ -135,7 +139,9 @@ namespace Nanook.NKit
                     _appSettings = key == null ? null : (AppSettingsSection)config?.GetSection(key);
                 }
                 if (_appSettings != null)
+                {
                     defValue = _appSettings?.Settings[name]?.Value ?? defValue;
+                }
             }
             catch { }
             return pathFix(defValue)?.Replace(" % exe", _exePath);
@@ -147,7 +153,7 @@ namespace Nanook.NKit
 
         public Settings(DiscType type, string overridePath, bool createPaths)
         {
-            this.DiscType = type;
+            DiscType = type;
             string setting = "Opening File";
             Configuration config;
             try
@@ -157,13 +163,19 @@ namespace Nanook.NKit
 
                 string path = overridePath ?? get(s, setting = "Path", true, @"%exe\Processed");
                 if (string.IsNullOrEmpty(path))
+                {
                     Path = Environment.CurrentDirectory;
+                }
                 else
+                {
                     Path = (new DirectoryInfo(path)).FullName;
+                }
 
-                int ol;
-                if (!int.TryParse(get(s, setting = "OutputLevel", false, "2"), out ol))
+                if (!int.TryParse(get(s, setting = "OutputLevel", false, "2"), out int ol))
+                {
                     ol = 1;
+                }
+
                 OutputLevel = ol;
 
                 EnableSummaryLog = get(s, setting = "EnableSummaryLog", false, ConfigFileFound ? "true" : "false") == "true";
@@ -190,7 +202,7 @@ namespace Nanook.NKit
                 s = get(config, "preserveFstFileAlignment");
                 PreserveFstFileAlignment = get(s, () => s?.Settings?.AllKeys?.Select(a => s.Settings[a])?.Select(a => new Tuple<string, long>(a.Key, long.Parse(a.Value, NumberStyles.HexNumber))).ToArray(), new Tuple<string, long>[0]);
 
-                if (this.DiscType == DiscType.GameCube)
+                if (DiscType == DiscType.GameCube)
                 {
                     s = get(config, "gamecube");
                     RedumpFstCrcs = get(s, setting = "RedumpFstCrcs", false, "")?.Split(',')?.Where(a => !string.IsNullOrEmpty(a)).Select(a => uint.Parse(a, NumberStyles.HexNumber)).ToArray() ?? new uint[0];
@@ -211,14 +223,16 @@ namespace Nanook.NKit
             {
                 throw new HandledException(ex, "Settings - Error loading setting '{0}'", setting);
             }
-            setPath(this.Path, config);
+            setPath(Path, config);
             if (createPaths)
-                this.CreatePaths();
+            {
+                CreatePaths();
+            }
         }
 
         public void SetPath(string path)
         {
-            if (path != this.Path)
+            if (path != Path)
             {
                 string setting = "Opening File";
                 Configuration config;
@@ -245,17 +259,24 @@ namespace Nanook.NKit
             try
             {
                 if (path == null)
+                {
                     path = get(s, setting = "Path", true, @"%exe\Processed");
+                }
+
                 if (string.IsNullOrEmpty(path))
+                {
                     Path = Environment.CurrentDirectory;
+                }
                 else
+                {
                     Path = (new DirectoryInfo(path)).FullName;
+                }
 
                 TempPath = get(s, setting = "TempPath", true, @"%pth\Temp");
                 SummaryLog = get(s, setting = "SummaryLog", true, @"%pth\NKitSummary.txt");
                 DatPathNameGameTdbMask = get(s, setting = "DatPathNameGameTdbMask", true, @"%exe\Dats\GameTdb\*.txt");
 
-                if (this.DiscType == DiscType.GameCube)
+                if (DiscType == DiscType.GameCube)
                 {
                     s = get(config, "gamecube");
 
@@ -317,7 +338,9 @@ namespace Nanook.NKit
             try
             {
                 if (!test())
+                {
                     err = msg;
+                }
             }
             catch (Exception ex)
             {
@@ -328,7 +351,9 @@ namespace Nanook.NKit
             try
             {
                 if (err != null)
+                {
                     l?.LogDetail(err);
+                }
             }
             catch { }
             return err == null; //okay
@@ -344,7 +369,9 @@ namespace Nanook.NKit
             try
             {
                 if (config != null)
+                {
                     return (AppSettingsSection)config.GetSection(sectionName);
+                }
             }
             catch { }
             return null;
@@ -355,7 +382,9 @@ namespace Nanook.NKit
             try
             {
                 if (s != null)
+                {
                     return getVals();
+                }
             }
             catch { }
             return defValue;
@@ -369,8 +398,11 @@ namespace Nanook.NKit
                 if (pathReplace)
                 {
                     if (m.StartsWith("~") && !string.IsNullOrEmpty(HomePath))
+                    {
                         m = HomePath + (m.Length == 1 ? "" : m.Substring(1));
-                    m = pathFix(m).Replace("%pth", this.Path)?.Replace("%exe", _exePath);
+                    }
+
+                    m = pathFix(m).Replace("%pth", Path)?.Replace("%exe", _exePath);
                 }
                 return m;
             }
@@ -378,9 +410,6 @@ namespace Nanook.NKit
             return null;
         }
 
-        public static Version LibraryVersion
-        {
-            get { return Assembly.GetExecutingAssembly().GetName().Version; }
-        }
+        public static Version LibraryVersion => Assembly.GetExecutingAssembly().GetName().Version;
     }
 }

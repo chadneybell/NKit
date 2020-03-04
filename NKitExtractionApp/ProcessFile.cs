@@ -1,9 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Text;
-
-namespace Nanook.NKit
+﻿namespace Nanook.NKit
 {
     internal class ProcessFile
     {
